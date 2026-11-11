@@ -1,4 +1,4 @@
 # Archived legacy workflow; GitHub Actions does not load this .disabled file.
 # The old workflow downloaded unreviewed scripts and exposed fixed credentials.
-# Use .github/workflows/macrdp.yml, which currently fails closed pending a
-# supported and verified macOS remote-control and transport configuration.
+# Use .github/workflows/macrdp.yml for reviewed configuration and live checks on
+# macos-latest; it fails the run rather than claiming success if checks fail.

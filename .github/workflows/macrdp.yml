@@ -8,13 +8,15 @@ permissions:
 
 jobs:
   macrdp:
-    name: MacRDP safety preflight
+    name: MacRDP on GitHub-hosted macOS
     runs-on: macos-latest
-    timeout-minutes: 10
+    timeout-minutes: 180
     steps:
       - name: Check out reviewed repository scripts
         uses: actions/checkout@v4
 
-      - name: Refuse unsupported public VNC setup
+      - name: Configure and verify VNC plus Ngrok TCP
         shell: bash
+        env:
+          NGROK_AUTH_TOKEN: ${{ secrets.NGROK_AUTH_TOKEN }}
         run: bash mac/start.sh
