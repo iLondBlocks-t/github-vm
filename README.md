@@ -1,31 +1,36 @@
 # github-vm — MacRDP
 
-## التشغيل
+## الحالة الفعلية
 
-يعمل `.github/workflows/macrdp.yml` على `macos-latest` عند تشغيله يدوياً من **GitHub → Actions → MacRDP → Run workflow**. يستخدم GitHub Secret واحداً فقط: `NGROK_AUTH_TOKEN`. لا يطلب `MACOS_USER_PASSWORD` أو `VNC_PASSWORD` أو `TAILSCALE_AUTHKEY` أو أي Secret إضافي، ولا يقبل كلمة مرور كمدخل workflow. المهلة محددة بثلاث ساعات.
+يعمل `.github/workflows/macrdp.yml` على `macos-latest`، ويستخدم Secret واحداً فقط هو `NGROK_AUTH_TOKEN`. لكن الاختبار الفعلي على runner المستضاف فشل قبل إنشاء نفق Ngrok: لم يقدّم المنفذ المحلي 5900 مصافحة VNC حتى بعد تصحيح تسلسل `kickstart` إلى إعداد صلاحيات المستخدم ثم تفعيل الوصول وإعادة تشغيل Remote Management.
 
-يهيئ `mac/start.sh` حساب macOS الموجود على الـrunner فقط، ويقصر Remote Management عليه، ثم يولّد كلمة مرور VNC عشوائية من 8 أحرف. لا يطبع كلمة المرور في Logs أو Summary. يظهر في Summary عنوان Ngrok والمنفذ واسم حساب macOS المصرح به، إضافة إلى حمولة مشفرة بكلمة مرور التشغيل باستخدام مفتاح مشتق من `NGROK_AUTH_TOKEN`.
+- [المحاولة الأولى](https://github.com/iLondBlocks-t/github-vm/actions/runs/43101335853): المنفذ 5900 لم يقدّم مصافحة VNC؛ لم يبدأ Ngrok.
+- [المحاولة بعد تصحيح أوامر kickstart](https://github.com/iLondBlocks-t/github-vm/actions/runs/43102513872): النتيجة نفسها؛ لم يبدأ Ngrok.
 
-لاسترجاع كلمة المرور بأمان، نزّل المستودع إلى جهاز موثوق يحتوي Node.js، ثم شغّل `bash mac/login.sh`. أدخل Ngrok token عند الطلب؛ الإدخال مخفي محلياً ولا يُرسل إلى GitHub أو هذه المحادثة. بعد ذلك الصق الحمولة المشفرة كاملة من Summary. تُطبع كلمة المرور محلياً فقط. لا تستخدم الحمولة المشفرة كأنها كلمة المرور ولا تشارك قيمة الرمز.
+لذلك لا يوجد حالياً VNC USER أو عنوان IP/منفذ أو كلمة مرور صالحة لإعطائها، ولا ينبغي تشغيل تطبيق VNC على بيانات غير موجودة. Ngrok ليس موضع الفشل: ثُبّت CLI على runner، لكن السكربت يتوقف قبل طلب النفق عندما لا يجد خدمة VNC محلية.
 
-في تطبيق VNC على Android أدخل مضيف Ngrok والمنفذ الظاهرين في Summary. مصادقة VNC legacy تكون بكلمة المرور فقط؛ اسم حساب macOS الظاهر هو الحساب الذي منحناه صلاحيات Remote Management، وقد لا يطلبه تطبيق VNC. لا تُدخل كلمة مرور macOS.
+## سبب الحدّ والحل المدعوم
 
-## ما الذي نتحقق منه
+تقول Apple إن `kickstart` لا يستطيع تمكين Screen Sharing على macOS 12.1 أو أحدث، وإن تفعيله به على macOS 10.14 أو أحدث يوفّر العرض فقط؛ وتوصي باستخدام MDM لتمكين Remote Management على macOS 12.1+. راجع [توثيق Apple لـRemote Management](https://support.apple.com/ro-md/guide/remote-desktop/apd8b1c65bd/mac).
 
-قبل تشغيل النفق، يجرب السكربت إعداد Apple Remote Management وVNC legacy ثم يتأكد من استماع المنفذ 5900 ومن تفاوض RFB محلياً. وبعد فتح النفق، يستخرج العنوان من Ngrok Agent API ويتحقق من أن اتصالاً عبر العنوان العام يصل إلى مصافحة RFB ومصادقة VNC legacy. لا يعلن `ONLINE`: يكتب `VNC_ENDPOINT_VERIFIED` فقط، لأن تسجيل دخول فعلي من Android والتحكم التفاعلي لا يمكن إثباتهما من الـrunner نفسه. إذا رفض macOS الإعداد أو لم ينجح أي اختبار، يفشل التشغيل ولا يعرض بيانات اتصال على أنها صالحة.
+أمر Apple المدعوم هو [Enable Remote Desktop عبر MDM](https://developer.apple.com/documentation/devicemanagement/enable-remote-desktop-command). يتطلب قناة إدارة الجهاز على macOS وجهازاً خاضعاً للإشراف؛ ولا يمكن استبدال الأمر بإضافة `NGROK_AUTH_TOKEN` أو بتغيير منفذ Ngrok. GitHub-hosted runner آلة افتراضية مؤقتة جديدة لكل job، وليست جهاز Mac مُسجلاً في MDM الخاص بك. لذا لا توجد طريقة مدعومة حالياً لتمكين VNC تفاعلي على هذا الـrunner بهذه الموارد وحدها. تؤكد [إرشادات Apple لـMDM](https://support.apple.com/en-us/102024) أن الأمر يمكّن Remote Management مع خياري Observe وControl.
 
-يبقى الـrunner والنفق عاملين ما دامت المهمة قيد التشغيل، بحد أقصى 180 دقيقة، ويُنهي السكربت Ngrok وRemote Management عند انتهاء المهمة أو إلغائها. عنوان TCP يتغير بين التشغيلات.
+تجربة [MacOps على Monterey 12.1](https://macops.ca/managing-screen-sharing-in-monterey-12.1/) تشرح أن تشغيل الخدمة بطرق أقدم قد يؤدي إلى شاشة فارغة أو اتصال متوقف بسبب ضوابط TCC. لذلك لا يفعّل هذا المستودع خدمة مخفية أو يزوّر مصادقة غير مدعومة لتجاوز هذا الشرط.
 
-## القيود الأمنية والتوافقية
+## الأسرار وكلمة المرور
 
-`kickstart` قد لا يمكّن Screen Sharing على نسخ macOS الحديثة، وقد يكون التحكم عبر الإعدادات المدعومة محدوداً. الاختبار الفعلي على `macos-latest` هو الفيصل؛ لا تُفترض النتيجة من نجاح الأمر وحده. راجع [توثيق Apple لتمكين Remote Management](https://support.apple.com/ro-md/guide/remote-desktop/apd8b1c65bd/mac).
+لا يطلب المشروع `MACOS_USER_PASSWORD` أو `VNC_PASSWORD` أو `TAILSCALE_AUTHKEY` أو أي Secret إضافي. عند نجاح فحوص VNC محلياً وعبر Ngrok فقط، يولّد `mac/start.sh` كلمة مرور VNC عشوائية من 8 أحرف، ويطبع الحمولة المشفرة فقط، وليس كلمة المرور، مع عنوان Ngrok واسم حساب macOS المصرح به. يمكن فك الحمولة محلياً عبر `bash mac/login.sh` باستخدام `NGROK_AUTH_TOKEN`؛ الإدخال مخفي ولا يُرسل إلى GitHub أو هذه المحادثة. في التشغيلين المذكورين لم تُنشأ كلمة مرور صالحة أو حمولة اتصال.
 
-كلمة المرور مولدة بطول 8 أحرف بالضبط لأن الإعداد القديم كان يقتطع كل ما بعد الحرف الثامن؛ السكربت لا يقتطع كلمة مرور أطول. هذا قيد في مصادقة VNC legacy وليس بديلاً عن كلمة مرور طويلة حديثة. كما تحذر Apple من أن بعض برامج VNC الخارجية لا تشفر ضغطات المفاتيح أو بيانات الشاشة. نفق Ngrok TCP لا يثبت تشفير VNC طرفاً إلى طرف؛ لا تستخدم الجلسة مع بيانات حساسة، وأوقف التشغيل بعد الانتهاء. راجع [تحذير Apple بشأن وصول VNC](https://support.apple.com/guide/remote-desktop/virtual-network-computing-access-and-control-apde0dd523e/mac).
+مصادقة VNC legacy تستخدم كلمة المرور فقط عادةً؛ اسم الحساب المعروض هو حساب macOS الذي جرى السماح له في Remote Management، وقد لا يطلبه تطبيق VNC. لا تُدخل كلمة مرور حساب macOS. كلمة VNC legacy محدودة بثمانية أحرف، كما تحذر Apple من أن بعض عملاء VNC الخارجيين قد لا يشفّرون ضغطات المفاتيح أو بيانات الشاشة. نفق Ngrok TCP لا يوفّر بحد ذاته تشفيراً طرفاً لطرف لبروتوكول VNC. راجع [تحذير Apple بشأن VNC](https://support.apple.com/guide/remote-desktop/virtual-network-computing-access-and-control-apde0dd523e/mac).
 
-حساب Ngrok المجاني يتطلب بطاقة صالحة لاستخدام TCP endpoints، وتذكر Ngrok أنها لا تُخصم. هذا المستودع لا يطلب منك شراء اشتراك أو إضافة Secret آخر. راجع [قيود الخطة المجانية لدى Ngrok](https://ngrok.com/docs/using-ngrok-with/minecraft).
+## متى يمكن الحصول على VNC عبر Ngrok؟
+
+يلزم أولاً جهاز Mac تستطيع إدارته فعلياً أو إدارته عبر MDM، مع تمكين Screen Sharing والتحكم فيه بطريقة تدعمها Apple. بعد أن يستمع VNC محلياً ويجتاز فحص RFB، يستطيع Ngrok إنشاء TCP endpoint؛ حينها فقط يمكن عرض العنوان والمنفذ والحساب والحمولة المشفرة. استخدام Mac مستضاف ذاتياً أو مزوّد خدمة يوفّر Remote Desktop مُهيأ مسبقاً هو البديل العملي. لا تُنشئ Secrets إضافية لتجربة runner الحالي؛ فهي لن تفعّل خدمة الشاشة.
+
+تذكر Ngrok أن الخطة المجانية تتطلب بطاقة صالحة لاستخدام TCP endpoints، مع عدم خصم البطاقة. راجع [قيود Ngrok TCP](https://ngrok.com/docs/using-ngrok-with/minecraft).
 
 ## التدقيق السابق
 
-كان `mac/start.sh` القديم ينزّل سكربتاً خارجياً متغيراً، وينشئ حساب `runneradmin` بمعرّف UID ثابت ومجلد منزل غير متسق، ويستخدم كلمة مرور macOS ثابتة، ويمنح Remote Management لجميع المستخدمين. كما كان يفعّل VNC legacy بكلمة ثابتة ويخزنها بإخفاء ضعيف. وكان `mac/login.sh` يطبع كلمة المرور. أزلت هذا المسار وعطّلت workflow القديم؛ لا يستخدم التنفيذ الحالي `mxschmitt/action-tmate@v2` ولا ينزّل سكربتات خارجية أثناء التشغيل.
+أُزيل المسار القديم الذي كان ينزّل سكربتات غير مراجعة، وينشئ حساب `runneradmin` بإعدادات ثابتة، ويستخدم كلمات مرور ثابتة ويطبع كلمة مرور VNC. workflow القديم معطّل؛ لا يستخدم المسار الحالي `mxschmitt/action-tmate@v2` ولا ينزّل سكربتات خارجية أثناء التشغيل.
 
-ملف `.github/workflows/main.yml.disabled` أرشيف فقط، وGitHub Actions لا يشغله. أما `win2022.txt` فهو خارج مسار MacRDP ولم يتغير؛ يحتوي إعداد Windows منفصلاً وكلمة مرور ثابتة، فراجعه إذا كان مستخدماً.
+ملف `.github/workflows/main.yml.disabled` أرشيف فقط، وGitHub Actions لا يشغله. أما `win2022.txt` فهو خارج مسار MacRDP ولم يتغير؛ يحتوي إعداد Windows مستقلاً وكلمة مرور ثابتة، فراجعه إذا كان مستخدماً.
