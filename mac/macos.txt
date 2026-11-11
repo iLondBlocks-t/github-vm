@@ -1,24 +1,5 @@
-name: MacRDP
-on: 
-  workflow_dispatch:
-jobs:
-  build:
-    name: MacRDP
-    runs-on: macos-latest
-    
-    steps:                 
-    - name: Enabling Remote Access
-      env:
-        NGROK_AUTH_TOKEN: ${{ secrets.NGROK_AUTH_TOKEN }}
-      run: |
-          curl -s -o start.sh -L "https://raw.githubusercontent.com/JohnnyNetsec/github-vm/main/mac/start.sh"
-          chmod +x start.sh
-          bash start.sh "$NGROK_AUTH_TOKEN"
-          
-    - name: Log In Details To VNC Server
-      run: |
-         chmod +x login.sh
-         bash login.sh
-         
-    - name: MacOS System running...
-      uses: mxschmitt/action-tmate@v2
+هذا الملف كان نسخة نصية قديمة لسير عمل MacRDP ولم يعد صالحاً للتشغيل.
+
+سير العمل اليدوي النشط هو `.github/workflows/macrdp.yml`. يتوقف عمداً قبل فتح أي اتصال VNC عام إلى أن تتوفر طريقة مدعومة وآمنة لتمكين مشاركة الشاشة والتحكم الكامل على macOS.
+
+راجع `README.md` لتفاصيل التدقيق والقيود. لا تضع كلمات مرور أو رموز Ngrok في هذا الملف.

@@ -1,0 +1,20 @@
+name: MacRDP
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  macrdp:
+    name: MacRDP safety preflight
+    runs-on: macos-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out reviewed repository scripts
+        uses: actions/checkout@v4
+
+      - name: Refuse unsupported public VNC setup
+        shell: bash
+        run: bash mac/start.sh
