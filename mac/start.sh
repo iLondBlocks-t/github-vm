@@ -70,9 +70,14 @@ export VNC_PASSWORD
 
 # Use the runner's existing macOS account and limit Remote Management to it.
 # Keep kickstart output private because third-party tools can echo arguments.
-if ! sudo "$KICKSTART" -activate -configure -allowAccessFor -specifiedUsers \
-  -users "$MACOS_USER" -privs -all >"$WORKDIR/kickstart-config.log" 2>&1; then
+if ! sudo "$KICKSTART" -configure -allowAccessFor -specifiedUsers \
+  >"$WORKDIR/kickstart-access.log" 2>&1; then
   echo 'Apple Remote Management configuration failed; no Ngrok tunnel was started.' >&2
+  exit 1
+fi
+if ! sudo "$KICKSTART" -configure -access -on -users "$MACOS_USER" -privs -all \
+  >"$WORKDIR/kickstart-user.log" 2>&1; then
+  echo 'Could not restrict Remote Management to the existing runner account; no Ngrok tunnel was started.' >&2
   exit 1
 fi
 if ! sudo "$KICKSTART" -configure -clientopts -setvnclegacy -vnclegacy yes \
@@ -80,8 +85,16 @@ if ! sudo "$KICKSTART" -configure -clientopts -setvnclegacy -vnclegacy yes \
   echo 'macOS rejected VNC legacy authentication; no Ngrok tunnel was started.' >&2
   exit 1
 fi
+if ! sudo "$KICKSTART" -activate >"$WORKDIR/kickstart-activate.log" 2>&1; then
+  echo 'Apple Remote Management could not be activated.' >&2
+  exit 1
+fi
 if ! sudo "$KICKSTART" -restart -agent -console >"$WORKDIR/kickstart-restart.log" 2>&1; then
   echo 'Apple Remote Management agent could not be restarted.' >&2
+  exit 1
+fi
+if ! sudo "$KICKSTART" -activate >"$WORKDIR/kickstart-reactivate.log" 2>&1; then
+  echo 'Apple Remote Management could not be reactivated after restart.' >&2
   exit 1
 fi
 
@@ -204,6 +217,7 @@ NODE
 printf 'Ngrok Host: %s\nNgrok TCP Port: %s\nmacOS account authorized for Remote Management: %s\n' \
   "$VNC_HOST" "$VNC_PORT" "$MACOS_USER"
 printf 'Validation: local and public TCP/RFB handshakes passed; Android login and interactive control are not yet verified.\n'
+printf 'Encrypted VNC password payload (ciphertext only): %s\n' "$VNC_PASSWORD_ENVELOPE"
 {
   printf '# MacRDP connection details\n\n'
   printf '**Status:** `VNC_ENDPOINT_VERIFIED` (Android authentication and interactive control are not yet verified)\n\n'
